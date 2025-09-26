@@ -10,7 +10,7 @@ kdevplatform_add_plugin(kdevcxx_with_ai_p
 )
 
 target_link_libraries(kdevcxx_with_ai_p
-    kdevcxx_with_ai::plugin_commn
+    kdevcxx_with_ai::plugin_common
     KF6::CoreAddons
     KF6::I18n
     KF6::TextEditor

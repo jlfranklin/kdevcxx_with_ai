@@ -13,7 +13,7 @@ target_sources(kate_with_ai PRIVATE
 target_compile_definitions(kate_with_ai PRIVATE TRANSLATION_DOMAIN="kate_with_ai")
 
 target_link_libraries(kate_with_ai
-  kdevcxx_with_ai::plugin_commn
+  kdevcxx_with_ai::plugin_common
   ${BASIC_LINK_FLAGS}
   KF6::CoreAddons
   KF6::I18n
