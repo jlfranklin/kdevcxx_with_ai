@@ -44,6 +44,7 @@ function(find_or_add_package name github_repo tag options)
             GITHUB_REPOSITORY ${github_repo}
             GIT_TAG ${tag}
             OPTIONS ${options}
+            EXCLUDE_FROM_ALL YES
         )
     endif()
 endfunction()
