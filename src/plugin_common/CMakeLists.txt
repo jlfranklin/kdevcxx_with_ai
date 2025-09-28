@@ -7,10 +7,10 @@ add_library( plugin_common STATIC )
 add_library( kdevcxx_with_ai::plugin_common ALIAS plugin_common )
 
 target_sources(plugin_common PRIVATE
- plugin_common.cc
- info_dialog.cc
- markdown_view.cc
- )
+    plugin_common.cc
+    info_dialog.cc
+    markdown_view.cc
+)
 
 target_link_libraries(plugin_common PUBLIC
     ai_processing::core
