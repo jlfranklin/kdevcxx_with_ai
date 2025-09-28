@@ -74,7 +74,7 @@ find_or_add_package(glaze "stephenberry/glaze" v2.2.1 "")
 find_or_add_package(fmt "fmtlib/fmt" 10.2.1 "")
 
 # spdlog
-find_or_add_package(spdlog "gabime/spdlog" v1.13.0 "")
+find_or_add_package(spdlog "gabime/spdlog" v1.14.0 "")
 
 # Boost
 find_package(Boost 1.66.0 REQUIRED COMPONENTS system thread)
