@@ -15,3 +15,5 @@ LICENSE
 # Don't need to copy Podman files into the container.
 Containerfile
 .dockerignore
+
+cpm_packages/
