@@ -85,6 +85,7 @@ using namespace aiprocess;
 auto send_text_to_gpt(
   std::string_view host,
   std::string_view port,
+  bool use_ssl,
   std::string_view target,
   std::string_view api_key,
   std::string_view text,

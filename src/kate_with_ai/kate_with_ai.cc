@@ -89,7 +89,10 @@ void kate_with_ai_view::on_process_with_ai()
   {
   auto * view = KTextEditor::Editor::instance()->application()->activeMainWindow()->activeView();
   if(!view || !view->selection()) [[unlikely]]
+  {
+    debug("No text selected.");
     return;
+  }
 
   kdevcxxai::process_with_ai(*view, plugin_->settings);
   }
