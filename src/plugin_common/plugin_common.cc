@@ -179,6 +179,8 @@ namespace config_page
     ui.openai_key = config_widget_creator_t<QLineEdit>{ai_form_widget, ai_form_layout}(QStringLiteral("OpenAI Key:"), emit_changed);
     ui.open_ai_model
       = config_widget_creator_t<QLineEdit>{ai_form_widget, ai_form_layout}(QStringLiteral("OpenAI Model:"), emit_changed);
+    ui.custom_url
+      = config_widget_creator_t<QLineEdit>{ai_form_widget, ai_form_layout}(QStringLiteral("Custom URL:"), emit_changed);
     ui.language_rules
       = config_widget_creator_t<QPlainTextEdit>{ai_form_widget, ai_form_layout}(QStringLiteral("Language Rules:"), emit_changed);
 
@@ -236,7 +238,8 @@ namespace config_page
     aiprocess::store_ai_settings(aiprocess::ai_settings_t{
       .api_key = ui.openai_key->text().toStdString(),
       .cxx_rules = ui.language_rules->toPlainText().toStdString(),
-      .gpt_model = ui.open_ai_model->text().toStdString()
+      .gpt_model = ui.open_ai_model->text().toStdString(),
+      .custom_url = ui.custom_url->text().toStdString()
     });
     using level_enum = aiprocess::app_settings_t::level_enum;
     aiprocess::store_app_settings<backend>(aiprocess::app_settings_t{
@@ -266,6 +269,7 @@ namespace config_page
       ui.language_rules->setPlainText(QString::fromStdString(settings.cxx_rules));
       ui.openai_key->setText(QString::fromStdString(settings.api_key));
       ui.open_ai_model->setText(QString::fromStdString(settings.gpt_model));
+      ui.custom_url->setText(QString::fromStdString(settings.custom_url));
       }
 
       // Second page settings
