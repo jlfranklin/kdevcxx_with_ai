@@ -82,6 +82,74 @@ static auto to_string(http::request<http::string_body> const & req) -> std::stri
 
 using namespace aiprocess;
 
+// Connection class to handle both SSL and non-SSL connections
+class Connection {
+public:
+    Connection(std::string_view host, std::string_view port, bool use_ssl)
+        : ioc_(), resolver_(ioc_), use_ssl_(use_ssl), host_(host) {
+        auto const results = resolver_.resolve(host, port);
+
+        if (use_ssl_) {
+            ctx_ = std::make_unique<ssl::context>(ssl::context::tls_client);
+            ctx_->set_default_verify_paths();
+            ssl_stream_ = std::make_unique<ssl::stream<tcp::socket>>(ioc_, *ctx_);
+
+            if (!SSL_set_tlsext_host_name(ssl_stream_->native_handle(), host_.data())) {
+                throw std::runtime_error(fmt::format("Failed to set SNI Hostname: {}",
+                    net::error::get_ssl_category().message(::ERR_get_error())));
+            }
+
+            net::connect(ssl_stream_->next_layer(), results.begin(), results.end());
+            ssl_stream_->handshake(ssl::stream_base::client);
+        } else {
+            tcp_socket_ = std::make_unique<tcp::socket>(ioc_);
+            net::connect(*tcp_socket_, results.begin(), results.end());
+        }
+    }
+
+    template<typename Request>
+    void write(Request const& req) {
+        if (use_ssl_) {
+            http::write(*ssl_stream_, req);
+        } else {
+            http::write(*tcp_socket_, req);
+        }
+    }
+
+    template<typename Response>
+    void read(beast::flat_buffer& buffer, Response& res) {
+        if (use_ssl_) {
+            http::read(*ssl_stream_, buffer, res);
+        } else {
+            http::read(*tcp_socket_, buffer, res);
+        }
+    }
+
+    void shutdown() {
+        beast::error_code ec;
+        if (use_ssl_) {
+            ssl_stream_->shutdown(ec);
+            if (ec == net::error::eof || ec == ssl::error::stream_truncated) {
+                ec = {};
+            }
+        } else {
+            tcp_socket_->shutdown(tcp::socket::shutdown_both, ec);
+        }
+        if (ec && ec != net::error::eof) {
+            throw std::runtime_error(fmt::format("Shutdown error: {}", ec.what()));
+        }
+    }
+
+private:
+    net::io_context ioc_;
+    tcp::resolver resolver_;
+    bool use_ssl_;
+    std::string host_;
+    std::unique_ptr<ssl::context> ctx_;
+    std::unique_ptr<ssl::stream<tcp::socket>> ssl_stream_;
+    std::unique_ptr<tcp::socket> tcp_socket_;
+};
+
 auto send_text_to_gpt(
   std::string_view host,
   std::string_view port,
@@ -92,37 +160,6 @@ auto send_text_to_gpt(
   int version
 ) -> expected<std::string, send_text_to_gpt_error>
   {
-  try
-    {
-    // The io_context is required for all I/O
-    net::io_context ioc;
-
-    // The SSL context is required, and we load the root certificates.
-    ssl::context ctx(ssl::context::tls_client);
-    ctx.set_default_verify_paths();
-
-    // These objects perform our I/O
-    tcp::resolver resolver(ioc);
-    ssl::stream<tcp::socket> stream(ioc, ctx);
-
-    // Set SNI Hostname (many hosts need this to handshake successfully)
-    if(!SSL_set_tlsext_host_name(stream.native_handle(), host.data()))
-      return unexpected_error(
-        send_text_to_gpt_error::failed_to_set_SNI_hostname,
-        "net ssl error [{}] {}",
-        static_cast<int>(::ERR_get_error()),
-        net::error::get_ssl_category().message(::ERR_get_error())
-      );
-
-    // Look up the domain name
-    auto const results = resolver.resolve(host, port);
-
-    // Make the connection on the IP address we get from a lookup
-    net::connect(stream.next_layer(), results.begin(), results.end());
-
-    // Perform the SSL handshake
-    stream.handshake(ssl::stream_base::client);
-
     // Set up the request. We use a string for the body.
     http::request<http::string_body> req{http::verb::post, target, version};
     req.set(http::field::host, host);
@@ -132,72 +169,41 @@ auto send_text_to_gpt(
     req.body() = text;
     req.prepare_payload();
 
-      {
+    {
       auto http_message_string{to_string(req)};
       snpt::info("{}", http_message_string);
-      }
-
-    // Send the HTTP request to the remote host
-    http::write(stream, req);
-
-    // This buffer is used for reading and must be persisted
-    beast::flat_buffer buffer;
-
-    // Declare a container to hold the response
-    http::response<http::dynamic_body> res;
-
-    // Receive the HTTP response
-    http::read(stream, buffer, res);
-
-      {
-      auto http_response_text{to_string(res)};
-      snpt::info("{}", http_response_text);
-      }
-
-    // Gracefully close the stream
-    beast::error_code ec;
-    stream.shutdown(ec);
-    if(ec == net::error::eof)
-      {
-      // Rationale:
-      // http://stackoverflow.com/questions/25587403/boost-asio-ssl-socket-shutdown
-      ec = {};
-      }
-    else if(ec == ssl::error::stream_truncated)
-      {
-      // ssl::error::stream_truncated, also known as an SSL "short read",
-      // indicates the peer closed the connection without performing the
-      // required closing handshake (for example, Google does this to
-      // improve performance). Generally this can be a security issue,
-      // but if your communication protocol is self-terminated (as
-      // it is with both HTTP and WebSocket) then you may simply
-      // ignore the lack of close_notify.
-      //
-      // https://github.com/boostorg/beast/issues/38
-      //
-      // https://security.stackexchange.com/questions/91435/how-to-handle-a-malicious-ssl-tls-shutdown
-      //
-      // When a short read would cut off the end of an HTTP message,
-      // Beast returns the error beast::http::error::partial_message.
-      // Therefore, if we see a short read here, it has occurred
-      // after the message has been completed, so it is safe to ignore it.
-      warn("Network Warn:\n{}", ec.what());
-      ec = {};
-      }
-    if(ec)
-      {
-      li::error("Network Error:\n{}", ec.what());
-      // return unexpected{send_text_to_gpt_error::network_error};
-      }
-
-    // If we get here then the connection is closed gracefully
-    return beast::buffers_to_string(res.body().data());
     }
+
+    try {
+        Connection conn(host, port, use_ssl);
+
+        // Send the HTTP request to the remote host
+        conn.write(req);
+
+        // This buffer is used for reading and must be persisted
+        beast::flat_buffer buffer;
+
+        // Declare a container to hold the response
+        http::response<http::dynamic_body> res;
+
+        // Receive the HTTP response
+        conn.read(buffer, res);
+
+        {
+            auto http_response_text{to_string(res)};
+            snpt::info("{}", http_response_text);
+        }
+
+        // Gracefully close the connection
+        conn.shutdown();
+
+        return beast::buffers_to_string(res.body().data());
+  }
   catch(std::exception const & e)
-    {
-    li::error("Network Error:\n{}", e.what());
-    return unexpected{send_text_to_gpt_error::other_exception};
-    }
+  {
+  li::error("Network Error:\n{}", e.what());
+  return unexpected{send_text_to_gpt_error::other_exception};
+  }
   }
 #if 0
 auto parse(std::string_view url) -> url_components
