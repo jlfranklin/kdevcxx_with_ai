@@ -4,7 +4,8 @@
 CPMAddPackage(
   ut
   GITHUB_REPOSITORY arturbac/ut-ext
-  GIT_TAG        v2.0.1_2
+  GIT_TAG           v2.0.1_2
+  EXCLUDE_FROM_ALL  YES
 )
 # find_package(ut REQUIRED)
 

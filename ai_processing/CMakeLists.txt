@@ -13,6 +13,7 @@ target_link_libraries(ai_processing PUBLIC
   OpenSSL::Crypto
   fmt::fmt
   glaze::glaze
+  spdlog::spdlog
 )
 
 target_compile_options( ai_processing PUBLIC ${BUILD_CXX_FLAGS} ${BASIC_CXX_FLAGS})
