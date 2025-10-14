@@ -19,6 +19,7 @@
 #include <cctype>
 #include <algorithm>
 #include <ranges>
+#include <regex>
 
 // 1. Text Completion (/v1/completions)
 //
@@ -109,6 +110,56 @@ struct ai_chat_command_json
 
 #endif
 
+// Parse a URL to extract host, port, and target components
+inline auto parse_custom_url(std::string_view custom_url) -> std::tuple<std::string, std::string, std::string, bool>
+  {
+  // If no custom URL is provided, return defaults
+  if(custom_url.empty())
+    {
+    return {"api.openai.com", "443", "/v1", true};
+    }
+
+  // Use regex_match to extract components from URL (avoiding rvalue issues)
+  std::regex url_regex(R"(^(https?://)?([^:/]+)(:([0-9]+))?(/.*)?)");
+  std::smatch matches;
+
+  // Convert string_view to string for regex_match to avoid rvalue issues
+  std::string url_str(custom_url);
+
+  if(std::regex_match(url_str, matches, url_regex))
+    {
+    // Extract host (group 2)
+    std::string host = matches[2].str();
+
+    bool use_ssl = (url_str.find("https://") == 0);
+
+    // Extract port (group 4) or default to 443 for https, 80 for http
+    std::string port = "443"; // default for https
+    if(matches[4].matched)
+      {
+      port = matches[4].str();
+      }
+    else if(url_str.find("http://") == 0)
+      {
+      port = "80"; // default for http
+      }
+
+    // Extract target (group 5) or default to /v1
+    std::string target = "/v1";
+    if(matches[5].matched)
+      {
+      target = matches[5].str();
+      }
+
+    return {host, port, target, use_ssl};
+    }
+  else
+    {
+    // Fallback to defaults if regex doesn't match
+    return {"api.openai.com", "443", "/v1", true};
+    }
+  }
+
 auto is_valid_openai_bearer_key(std::string const & key) noexcept -> bool
   {
   // Example criteria: key should be 41 characters long and only contain alphanumeric characters
@@ -176,13 +227,20 @@ try
     );
   // https://openai.com/blog/new-models-and-developer-products-announced-at-devday
 
+  // Extract host, port, and target from custom URL if provided
+  auto [host, port, target, use_ssl] = parse_custom_url(aisettings.custom_url);
+  auto chat_target = target + "/chat/completions";
+
+  debug("Sending {}:{}{}", host, port, target);
+
 #ifndef ENABLE_CHAT_COMPLETIONS
   auto res{send_text_to_gpt(
-    "api.openai.com", "443", "/v1/completions", aisettings.api_key, aiprocess::trim_white_space(serialized), 11
+    host.c_str(), port.c_str(), use_ssl, chat_target.c_str(), aisettings.api_key, aiprocess::trim_white_space(serialized), 11
   )};
 #else
+  // For chat completions, we need to make sure the target is correct for that endpoint
   auto res{send_text_to_gpt(
-    "api.openai.com", "443", "/v1/chat/completions", aisettings.api_key, aiprocess::trim_white_space(serialized), 11
+    host.c_str(), port.c_str(), use_ssl, chat_target.c_str(), aisettings.api_key, aiprocess::trim_white_space(serialized), 11
   )};
 #endif
   // auto res{send_text_to_gpt("api.openai.com", "443", "/v1/engines/gpt-3.5-turbo/completions", api_key, serialized,
@@ -290,4 +348,3 @@ auto process_openai_json_response(model_response_text_t const & data, std::strin
   }
   }  // namespace aiprocess
 #endif
-
