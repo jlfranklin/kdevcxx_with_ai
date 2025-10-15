@@ -13,8 +13,6 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-set(BUILD_SHARED_LIBS OFF)
-
 # Prevent in-source builds
 if(PROJECT_SOURCE_DIR STREQUAL PROJECT_BINARY_DIR)
     message(FATAL_ERROR
@@ -44,6 +42,7 @@ function(find_or_add_package name github_repo tag options)
             GITHUB_REPOSITORY ${github_repo}
             GIT_TAG ${tag}
             OPTIONS ${options}
+            EXCLUDE_FROM_ALL YES
         )
     endif()
 endfunction()
@@ -73,7 +72,7 @@ find_or_add_package(glaze "stephenberry/glaze" v2.2.1 "")
 find_or_add_package(fmt "fmtlib/fmt" 10.2.1 "")
 
 # spdlog
-find_or_add_package(spdlog "gabime/spdlog" v1.13.0 "")
+find_or_add_package(spdlog "gabime/spdlog" v1.14.0 "")
 
 # Boost
 find_package(Boost 1.66.0 REQUIRED COMPONENTS system thread)

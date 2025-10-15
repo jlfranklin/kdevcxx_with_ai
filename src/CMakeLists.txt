@@ -1,9 +1,8 @@
-
 find_package(ECM "6.6.0" CONFIG REQUIRED)
 
 list(APPEND CMAKE_MODULE_PATH ${ECM_MODULE_PATH})
 
-include(KDEInstallDirs)
+include(KDEInstallDirs6)
 include(KDECMakeSettings)
 
 include(KDECompilerSettings NO_POLICY_SCOPE)
