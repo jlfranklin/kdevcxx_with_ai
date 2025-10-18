@@ -50,6 +50,7 @@ namespace config_page
     QPlainTextEdit * language_rules;
     QLineEdit * openai_key;
     QLineEdit * open_ai_model;
+    QLineEdit * custom_url;
 
     QLineEdit * log_path_edit;
     QLineEdit * console_log_pattern_edit;

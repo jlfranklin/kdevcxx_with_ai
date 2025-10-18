@@ -138,6 +138,9 @@ struct ai_settings_t
   /// Identifier for the GPT model to be used for AI completions.
   std::string gpt_model{default_gpt_model};
 
+  /// Custom URL for AI service (optional).
+  std::string custom_url{};
+
   /// Version of the AI settings currently in use.
   ai_settings_version_e version{simple_enum::limits::max<ai_settings_version_e>()};
 

@@ -21,12 +21,13 @@ int main()
   {
     std::string_view host = "postman-echo.com";
     std::string_view port = "443";
+    bool use_ssl = true;
     std::string_view target = "/post";
     std::string_view lapi_key = "INVALID KEY";
     std::string_view text = R"({"test": "data"})";
     int version = 11;  // HTTP/1.1
 
-    auto result = send_text_to_gpt(host, port, target, lapi_key, text, version);
+    auto result = send_text_to_gpt(host, port, use_ssl, target, lapi_key, text, version);
 
     // Since `expected` is hypothetical here, let's assume `result` is valid if no error is present.
     expect(fatal(result.has_value())) << "Expected a valid result";
@@ -57,11 +58,12 @@ int main()
 
     std::string_view host = "postman-echo.com";
     std::string_view port = "443";
+    bool use_ssl = true;
     std::string_view target = "/post";
     std::string_view lapi_key = "INVALID KEY";
     int version = 11;  // HTTP/1.1
 
-    auto result = send_text_to_gpt(host, port, target, lapi_key, json_text, version);
+    auto result = send_text_to_gpt(host, port, use_ssl, target, lapi_key, json_text, version);
 
     // Verify the response contains the sent JSON data
     expect(fatal(result.has_value())) << "Expected a valid result";
@@ -82,7 +84,7 @@ int main()
   "frequency_penalty":0,
   "presence_penalty":0
 })";
-    
+
     std::string_view host = "api.openai.com";
     std::string_view port = "443";
     std::string_view target = "/v1/completions";

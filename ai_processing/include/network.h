@@ -38,9 +38,9 @@ consteval auto adl_enum_bounds(send_text_to_gpt_error)
 auto send_text_to_gpt(
   std::string_view host,
   std::string_view port,
+  bool use_ssl,
   std::string_view target,
   std::string_view api_key,
   std::string_view text,
   int version
 ) -> expected<std::string, send_text_to_gpt_error>;
-
